@@ -40,7 +40,7 @@ namespace physics_engine
 
             CenterWindow(new Vector2i(width,height));
 
-            square = new RigidBody(new Vector2(0f,0f),new Vector2(0.0f,0f),0f,1f,1f);
+            square = new RigidBody(new Vector2(0f,0f),new Vector2(0f,0f),0f,0f,1f);
             System.Console.WriteLine(square.Position);
         }
 
@@ -110,7 +110,8 @@ namespace physics_engine
             Matrix4 projection = Matrix4.CreateOrthographic(width, height, -1.0f, 1.0f);
             Matrix4 rotation = Matrix4.CreateRotationZ(square.Theta);
             
-            Matrix4 transformation = translation * rotation * projection;
+            // order very important. if rot and trans are flipped, velocity => tangential velocity rather than velocity in the expected Cartesion thingamibob
+            Matrix4 transformation = rotation * translation * projection;
             
             GL.UseProgram(shaderProgram);
             GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "Transformation"), false, ref transformation);
