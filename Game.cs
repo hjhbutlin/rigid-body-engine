@@ -17,11 +17,11 @@ namespace physics_engine
 
         float[] vertices = 
         {
-            0f, 0.5f, 0f,
-            -0.5f, -0.5f, 0f,
-            0.5f, -0.5f, 0f
+            -50f, 50f,
+            -50f, -50f,
+            50f, -50f,
+            50f, 50f
         };
-
 
         // Render Pipeline variables
         int vao;
@@ -42,10 +42,16 @@ namespace physics_engine
             GL.Viewport(0,0,e.Width,e.Height);
             this.width = e.Width;
             this.height = e.Height;
+
+            Matrix4 projection = Matrix4.CreateOrthographic(width, height, -1.0f, 1.0f);
+            GL.UseProgram(shaderProgram);
+            GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "projection"), false, ref projection);
+
         }
         protected override void OnLoad()
         {
             base.OnLoad();
+
             vao = GL.GenVertexArray();
 
             int vbo = GL.GenBuffer();
@@ -56,8 +62,8 @@ namespace physics_engine
             
             // bind vao
             GL.BindVertexArray(vao);
-            // slot 0, size 3, type, normalised?, stride, offset
-            GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 0, 0);
+            // slot 0, floats per vertex, type, normalised?, stride, offset
+            GL.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, 0, 0);
             // enable slot 0
             GL.EnableVertexAttribArray(0);
 
@@ -85,6 +91,11 @@ namespace physics_engine
 
             GL.DeleteShader(vertexShader);
             GL.DeleteShader(fragmentShader);
+
+            Matrix4 projection = Matrix4.CreateOrthographic(width, height, -1.0f, 1.0f);
+            GL.UseProgram(shaderProgram);
+            GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "projection"), false, ref projection);
+
         }
 
         protected override void OnUnload()
@@ -97,14 +108,14 @@ namespace physics_engine
 
         protected override void OnRenderFrame(FrameEventArgs args)
         {
-            GL.ClearColor(0f,0f,0f,0f);
+            GL.ClearColor(0.2f,0.2f,0.2f,1.0f);
             GL.Clear(ClearBufferMask.ColorBufferBit);
 
-            // draw triangle
+            // draw object
 
             GL.UseProgram(shaderProgram);
             GL.BindVertexArray(vao);
-            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+            GL.DrawArrays(PrimitiveType.TriangleFan, 0, 4);
 
 
             Context.SwapBuffers();
@@ -127,6 +138,7 @@ namespace physics_engine
             {
                 using (StreamReader reader = new StreamReader("./Shaders/" + filePath))
                 {
+                    
                     shaderSource = reader.ReadToEnd();
                 }
             }
