@@ -13,16 +13,22 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 namespace physics_engine
 {
     internal class Game : GameWindow {
+        
 
-
-        float[] vertices = 
+        public static float[] SquareVertices(float sideLength)
         {
-            -50f, 50f,
-            -50f, -50f,
-            50f, -50f,
-            50f, 50f
-        };
-
+            float halfS = sideLength/2;
+            float[] vertices =
+            {
+                halfS, halfS,
+                -halfS, halfS,
+                -halfS, -halfS,
+                halfS, -halfS
+            };
+            return vertices;
+        }
+        float[] vertices = SquareVertices(100f);
+        RigidBody square;
         // Render Pipeline variables
         int vao;
         int shaderProgram;
@@ -34,6 +40,8 @@ namespace physics_engine
 
             CenterWindow(new Vector2i(width,height));
 
+            square = new RigidBody(new Vector2(0f,0f),new Vector2(0.0f,0f),0f,1f,1f);
+            System.Console.WriteLine(square.Position);
         }
 
         protected override void OnResize(ResizeEventArgs e)
@@ -42,10 +50,12 @@ namespace physics_engine
             GL.Viewport(0,0,e.Width,e.Height);
             this.width = e.Width;
             this.height = e.Height;
+            
+            // only projection on resize
+            Matrix4 Transformation = Matrix4.CreateOrthographic(width, height, -1.0f, 1.0f);
 
-            Matrix4 projection = Matrix4.CreateOrthographic(width, height, -1.0f, 1.0f);
             GL.UseProgram(shaderProgram);
-            GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "projection"), false, ref projection);
+            GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "Transformation"), false, ref Transformation);
 
         }
         protected override void OnLoad()
@@ -58,7 +68,7 @@ namespace physics_engine
             // bind vbo
             GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
             // data into vbo
-            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length*sizeof(float), vertices, BufferUsageHint.StaticDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
             
             // bind vao
             GL.BindVertexArray(vao);
@@ -75,11 +85,11 @@ namespace physics_engine
             shaderProgram = GL.CreateProgram();
 
             int vertexShader = GL.CreateShader(ShaderType.VertexShader);
-            GL.ShaderSource(vertexShader,LoadShaderSource("Default.vert"));
+            GL.ShaderSource(vertexShader, LoadShaderSource("Default.vert"));
             GL.CompileShader(vertexShader);
 
             int fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
-            GL.ShaderSource(fragmentShader,LoadShaderSource("Default.frag"));
+            GL.ShaderSource(fragmentShader, LoadShaderSource("Default.frag"));
             GL.CompileShader(fragmentShader);
 
             GL.AttachShader(shaderProgram, vertexShader);
@@ -88,15 +98,24 @@ namespace physics_engine
             GL.LinkProgram(shaderProgram);
 
             // delete all shaders
-
             GL.DeleteShader(vertexShader);
             GL.DeleteShader(fragmentShader);
 
-            Matrix4 projection = Matrix4.CreateOrthographic(width, height, -1.0f, 1.0f);
-            GL.UseProgram(shaderProgram);
-            GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "projection"), false, ref projection);
-
+            UpdateTransformation();
         }
+
+        private void UpdateTransformation()
+        {
+            Matrix4 translation = Matrix4.CreateTranslation(square.Position.X, square.Position.Y, 0f);
+            Matrix4 projection = Matrix4.CreateOrthographic(width, height, -1.0f, 1.0f);
+            Matrix4 rotation = Matrix4.CreateRotationZ(square.Theta);
+            
+            Matrix4 transformation = translation * rotation * projection;
+            
+            GL.UseProgram(shaderProgram);
+            GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "Transformation"), false, ref transformation);
+        }
+
 
         protected override void OnUnload()
         {
@@ -110,6 +129,8 @@ namespace physics_engine
         {
             GL.ClearColor(0.2f,0.2f,0.2f,1.0f);
             GL.Clear(ClearBufferMask.ColorBufferBit);
+
+            UpdateTransformation();
 
             // draw object
 
@@ -125,6 +146,10 @@ namespace physics_engine
 
         protected override void OnUpdateFrame(FrameEventArgs args)
         {
+            float dt = (float)args.Time;
+
+            square.Update(dt);
+            
             base.OnUpdateFrame(args);
         }
 
