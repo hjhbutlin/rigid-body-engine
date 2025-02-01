@@ -36,5 +36,7 @@ namespace spherical_pool_in_a_vacuum
             Position += Velocity * dt;
             Theta += Omega * dt;
         }
+
+        
     }
 }

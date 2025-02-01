@@ -44,8 +44,8 @@ namespace spherical_pool_in_a_vacuum
             return vertices;
         }
 
-        const int ballCount = 2;
-        const float ballRadius = 50f;
+        const int ballCount = 20;
+        const float ballRadius = 20;
         const float ballDiameter = 2 * ballRadius;
         const float restitution = 1.0f;
 
@@ -72,10 +72,10 @@ namespace spherical_pool_in_a_vacuum
             balls = new List<RigidBody>();
             for (int i = 0; i < ballCount; i++)
             {
-                float x = -100 + 300 * i;
-                float y = 0;
+                float x = -width + 10 + i*(ballDiameter + 10);
+                float y = i;
                 
-                balls.Add(new RigidBody(new Vector2(x, y), new Vector2(100 - i*100, 0f), 0f, 0f, 1f));
+                balls.Add(new RigidBody(new Vector2(x, y), new Vector2(100, 0f), 0f, 0f, 1f));
             }
             
 
@@ -187,16 +187,74 @@ namespace spherical_pool_in_a_vacuum
             GL.DeleteProgram(shaderProgram);
         }
 
+        public void CheckAndResolveCollisions()
+        {
+            for (int i = 0; i < ballCount; i++)
+            {
+                // check for collision at edge assuming rectangular boundaries and apply overlap correction
+                if (balls[i].Position.X - ballRadius <= -width)
+                {
+                    balls[i].Velocity = new Vector2(balls[i].Velocity.X * -restitution, balls[i].Velocity.Y);
+                    balls[i].Position = new Vector2(-width + ballRadius, balls[i].Position.Y);
+                }
+                else if (balls[i].Position.X + ballRadius >= width)
+                {
+                    balls[i].Velocity = new Vector2(balls[i].Velocity.X * -restitution, balls[i].Velocity.Y);
+                    balls[i].Position = new Vector2(width - ballRadius, balls[i].Position.Y);
+                }
+
+                if (balls[i].Position.Y - ballRadius <= -height)
+                {
+                    balls[i].Velocity = new Vector2(balls[i].Velocity.X, balls[i].Velocity.Y * -restitution);
+                    balls[i].Position = new Vector2(balls[i].Position.X, -height + ballRadius);
+                }
+                else if (balls[i].Position.Y + ballRadius >= height)
+                {
+                    balls[i].Velocity = new Vector2(balls[i].Velocity.X, balls[i].Velocity.Y * -restitution);
+                    balls[i].Position = new Vector2(balls[i].Position.X, height - ballRadius);
+                }
+
+                for (int j = i + 1; j < ballCount; j++)
+                {
+                    Vector2 relativePosition = balls[i].Position - balls[j].Position;
+                    float distance = relativePosition.Length;
+
+                    if (distance <= ballDiameter)
+                    {
+                        Vector2 normal = Vector2.Normalize(relativePosition);
+                        Vector2 relativeVelocity = balls[i].Velocity - balls[j].Velocity;
+                        float speedProjection = Vector2.Dot(relativeVelocity, normal);
+
+                        // no collision if balls are already moving apart
+                        if (speedProjection > 0)
+                        {
+                            return;
+                        }
+
+                        // reduced mass and restitution
+                        Vector2 impulse = normal * (1 + restitution) * speedProjection / ((1 / balls[i].Mass) + (1 / balls[j].Mass));
+                        balls[i].Velocity -= impulse / balls[i].Mass;
+                        balls[j].Velocity += impulse / balls[j].Mass;
+                        
+                        // in case of overlap, move balls apart to be just touching
+                        float overlapCorrection = (ballDiameter - distance) / 2;
+                        balls[i].Position -= normal * overlapCorrection;
+                        balls[j].Position += normal * overlapCorrection;
+
+                        System.Console.WriteLine(balls[i].Velocity);
+                        System.Console.WriteLine(balls[j].Velocity);
+
+                    }
+                }
+            }
+        }
+
         protected override void OnRenderFrame(FrameEventArgs args)
         {
             GL.ClearColor(0.2f,0.2f,0.2f,1.0f);
             GL.Clear(ClearBufferMask.ColorBufferBit);
 
-
-            // draw objects
-
-            // refresh instances arrays
-            
+            // draw objects            
             GL.BindBuffer(BufferTarget.ArrayBuffer,positionsVbo);
             GL.BufferData(BufferTarget.ArrayBuffer,instancePositions.Length * 2 * sizeof(float), instancePositions, BufferUsageHint.DynamicDraw);
 
@@ -227,42 +285,8 @@ namespace spherical_pool_in_a_vacuum
                 instanceRotations[i] = balls[i].Theta;
             }
 
-            for (int i = 0; i < ballCount; i++)
-            {
-                for (int j = i + 1; j < ballCount; j++)
-                {
-                    Vector2 relativePosition = balls[i].Position - balls[j].Position;
-                    float distance = relativePosition.Length;
+            CheckAndResolveCollisions();
 
-                    if (distance <= ballDiameter)
-                    {
-                        Vector2 normal = Vector2.Normalize(relativePosition);
-                        Vector2 relativeVelocity = balls[i].Velocity - balls[j].Velocity;
-                        float speedProjection = Vector2.Dot(relativeVelocity, normal);
-
-                        // no collision if balls are already moving apart
-                        if (speedProjection > 0)
-                        {
-                            return;
-                        }
-
-                        // reduced mass and restitution
-                        Vector2 impulse = normal * (1 + restitution) * speedProjection / ((1 / balls[i].Mass) + (1 / balls[j].Mass));
-                        balls[i].Velocity -= impulse / balls[i].Mass;
-                        balls[j].Velocity += impulse / balls[j].Mass;
-                        
-                        float overlapCorrection = (ballDiameter - distance) / 2;
-                        balls[i].Position -= normal * overlapCorrection;
-                        balls[j].Position += normal * overlapCorrection;
-
-                        System.Console.WriteLine(balls[i].Velocity);
-                        System.Console.WriteLine(balls[j].Velocity);
-
-                    }
-                }
-            }
-
-        
             base.OnUpdateFrame(args);
         }
 
