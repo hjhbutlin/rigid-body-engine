@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 
-namespace physics_engine
+namespace spherical_pool_in_a_vacuum
 {
     internal class RigidBody
     {

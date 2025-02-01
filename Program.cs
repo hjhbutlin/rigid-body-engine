@@ -1,4 +1,4 @@
-﻿namespace physics_engine
+﻿namespace spherical_pool_in_a_vacuum
 {
     public class Program
     {

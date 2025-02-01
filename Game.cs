@@ -1,3 +1,5 @@
+//spherical pool in a vaccum
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,29 +12,52 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 
-namespace physics_engine
+namespace spherical_pool_in_a_vacuum
 {
     internal class Game : GameWindow {
-        
 
+        public static float[] CircleVertices(float radius, int n)
+        {
+            float[] vertices = new float[n*2];
+            float angleStep = MathF.PI * 2 / n;
+
+            for (int i = 0; i < n; i++)
+            {
+                float angle = i * angleStep;
+                vertices[i * 2] = radius * MathF.Cos(angle);
+                vertices[i * 2 + 1] = radius * MathF.Sin(angle);
+            }
+
+            return vertices;
+        }
         public static float[] SquareVertices(float sideLength)
         {
             float halfS = sideLength/2;
             float[] vertices =
             {
                 halfS, halfS,
-                -halfS, halfS,
+                halfS, -halfS,
                 -halfS, -halfS,
-                halfS, -halfS
+                -halfS, halfS
             };
+
             return vertices;
         }
-        float[] vertices = SquareVertices(100f);
-        RigidBody square;
-        // Render Pipeline variables
+
+        const int ballCount = 16;
+
+        float[] vertices = CircleVertices(10f, 20);
+        //float[] vertices = SquareVertices(50f);
+        float[] instancePositions = new float[2 * ballCount];
+        float[] instanceRotations = new float[ballCount];
+
         int vao;
+        int positionsVbo;
+        int rotationsVbo;
         int shaderProgram;
         int width, height;
+
+        List<RigidBody> balls;
         public Game(int width, int height) : base(GameWindowSettings.Default, NativeWindowSettings.Default)
         {
             this.width = width;
@@ -40,8 +65,17 @@ namespace physics_engine
 
             CenterWindow(new Vector2i(width,height));
 
-            square = new RigidBody(new Vector2(0f,0f),new Vector2(0f,0f),0f,0f,1f);
-            System.Console.WriteLine(square.Position);
+            // list of balls
+            balls = new List<RigidBody>();
+            for (int i = 0; i < ballCount; i++)
+            {
+                float x = 50* (i % 4);
+                float y = 50* MathF.Floor(i/4);
+                
+                balls.Add(new RigidBody(new Vector2(x, y), new Vector2(i*5, 0f), 0f, i*5, 1f));
+            }
+            
+
         }
 
         protected override void OnResize(ResizeEventArgs e)
@@ -62,23 +96,52 @@ namespace physics_engine
         {
             base.OnLoad();
 
+            // set up VAO
             vao = GL.GenVertexArray();
+            GL.BindVertexArray(vao);
 
-            int vbo = GL.GenBuffer();
-            // bind vbo
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
-            // data into vbo
+            // set up static vertex data in vertex VBO
+            int vertexVbo = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ArrayBuffer, vertexVbo);
             GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
             
-            // bind vao
-            GL.BindVertexArray(vao);
             // slot 0, floats per vertex, type, normalised?, stride, offset
             GL.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, 0, 0);
-            // enable slot 0
             GL.EnableVertexAttribArray(0);
 
-            // unbind both
-            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
+            // refresh instances arrays
+            for (int i=0; i < ballCount; i++)
+            {
+                instancePositions[2*i] = balls[i].Position.X;
+                instancePositions[2*i + 1] = balls[i].Position.Y;
+                instanceRotations[i] = balls[i].Theta;
+            }
+            
+            // POSITIONS vbo setup
+            positionsVbo = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ArrayBuffer,positionsVbo);
+            GL.BufferData(BufferTarget.ArrayBuffer,instancePositions.Length * 2 * sizeof(float), instancePositions, BufferUsageHint.DynamicDraw);
+            
+            // slot 1, floats per vertex, type, normalised?, stride, offset
+            GL.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, 0, 0);
+            GL.EnableVertexAttribArray(1);
+            GL.VertexAttribDivisor(1, 1);
+
+            // ROTATIONS vbo setup
+            rotationsVbo = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ArrayBuffer,rotationsVbo);
+            GL.BufferData(BufferTarget.ArrayBuffer,instanceRotations.Length * sizeof(float), instanceRotations, BufferUsageHint.DynamicDraw);
+            
+            // slot 2, floats per vertex, type, normalised?, stride, offset
+            GL.VertexAttribPointer(2, 1, VertexAttribPointerType.Float, false, 0, 0);
+            GL.EnableVertexAttribArray(2);
+            GL.VertexAttribDivisor(2, 1);
+
+
+            // unbind vbo
+            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);            
+
+            // unbind vao
             GL.BindVertexArray(0);
 
             // create shader program
@@ -95,28 +158,23 @@ namespace physics_engine
             GL.AttachShader(shaderProgram, vertexShader);
             GL.AttachShader(shaderProgram, fragmentShader);
 
+
+
             GL.LinkProgram(shaderProgram);
 
             // delete all shaders
             GL.DeleteShader(vertexShader);
             GL.DeleteShader(fragmentShader);
 
-            UpdateTransformation();
-        }
+            foreach (RigidBody ball in balls)
+            {
+            System.Console.WriteLine(ball.Position.X);
+            }
 
-        private void UpdateTransformation()
-        {
-            Matrix4 translation = Matrix4.CreateTranslation(square.Position.X, square.Position.Y, 0f);
-            Matrix4 projection = Matrix4.CreateOrthographic(width, height, -1.0f, 1.0f);
-            Matrix4 rotation = Matrix4.CreateRotationZ(square.Theta);
-            
-            // order very important. if rot and trans are flipped, velocity => tangential velocity rather than velocity in the expected Cartesion thingamibob
-            Matrix4 transformation = rotation * translation * projection;
-            
+            Matrix4 projection = Matrix4.CreateOrthographic(width, height, -1f, 1f);   
             GL.UseProgram(shaderProgram);
-            GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "Transformation"), false, ref transformation);
+            GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "Projection"), false, ref projection);
         }
-
 
         protected override void OnUnload()
         {
@@ -131,14 +189,23 @@ namespace physics_engine
             GL.ClearColor(0.2f,0.2f,0.2f,1.0f);
             GL.Clear(ClearBufferMask.ColorBufferBit);
 
-            UpdateTransformation();
 
-            // draw object
+            // draw objects
+
+            // refresh instances arrays
+            
+            GL.BindBuffer(BufferTarget.ArrayBuffer,positionsVbo);
+            GL.BufferData(BufferTarget.ArrayBuffer,instancePositions.Length * 2 * sizeof(float), instancePositions, BufferUsageHint.DynamicDraw);
+
+            GL.BindBuffer(BufferTarget.ArrayBuffer,rotationsVbo);
+            GL.BufferData(BufferTarget.ArrayBuffer,instanceRotations.Length * sizeof(float), instanceRotations, BufferUsageHint.DynamicDraw);
+            
+            Matrix4 projection = Matrix4.CreateOrthographic(width, height, -1f, 1f);   
+            GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "Projection"), false, ref projection);
 
             GL.UseProgram(shaderProgram);
             GL.BindVertexArray(vao);
-            GL.DrawArrays(PrimitiveType.TriangleFan, 0, 4);
-
+            GL.DrawArraysInstanced(PrimitiveType.TriangleFan, 0, vertices.Length / 2, ballCount);
 
             Context.SwapBuffers();
 
@@ -149,12 +216,18 @@ namespace physics_engine
         {
             float dt = (float)args.Time;
 
-            square.Update(dt);
+            for (int i=0; i < ballCount; i++)
+            {
+                balls[i].Update(dt);
+                instancePositions[2*i] = balls[i].Position.X;
+                instancePositions[2*i + 1] = balls[i].Position.Y;
+                instanceRotations[i] = balls[i].Theta;
+            }
             
             base.OnUpdateFrame(args);
         }
 
-        // function that loads a .txt and returns a str
+        // function that loads a text file and returns a str
 
         public static string LoadShaderSource(String filePath)
         {
