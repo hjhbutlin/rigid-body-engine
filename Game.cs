@@ -44,9 +44,12 @@ namespace spherical_pool_in_a_vacuum
             return vertices;
         }
 
-        const int ballCount = 16;
+        const int ballCount = 2;
+        const float ballRadius = 50f;
+        const float ballDiameter = 2 * ballRadius;
+        const float restitution = 1.0f;
 
-        float[] vertices = CircleVertices(10f, 20);
+        float[] vertices = CircleVertices(ballRadius, 20);
         //float[] vertices = SquareVertices(50f);
         float[] instancePositions = new float[2 * ballCount];
         float[] instanceRotations = new float[ballCount];
@@ -69,10 +72,10 @@ namespace spherical_pool_in_a_vacuum
             balls = new List<RigidBody>();
             for (int i = 0; i < ballCount; i++)
             {
-                float x = 50* (i % 4);
-                float y = 50* MathF.Floor(i/4);
+                float x = -100 + 300 * i;
+                float y = 0;
                 
-                balls.Add(new RigidBody(new Vector2(x, y), new Vector2(i*5, 0f), 0f, i*5, 1f));
+                balls.Add(new RigidBody(new Vector2(x, y), new Vector2(100 - i*100, 0f), 0f, 0f, 1f));
             }
             
 
@@ -223,7 +226,43 @@ namespace spherical_pool_in_a_vacuum
                 instancePositions[2*i + 1] = balls[i].Position.Y;
                 instanceRotations[i] = balls[i].Theta;
             }
-            
+
+            for (int i = 0; i < ballCount; i++)
+            {
+                for (int j = i + 1; j < ballCount; j++)
+                {
+                    Vector2 relativePosition = balls[i].Position - balls[j].Position;
+                    float distance = relativePosition.Length;
+
+                    if (distance <= ballDiameter)
+                    {
+                        Vector2 normal = Vector2.Normalize(relativePosition);
+                        Vector2 relativeVelocity = balls[i].Velocity - balls[j].Velocity;
+                        float speedProjection = Vector2.Dot(relativeVelocity, normal);
+
+                        // no collision if balls are already moving apart
+                        if (speedProjection > 0)
+                        {
+                            return;
+                        }
+
+                        // reduced mass and restitution
+                        Vector2 impulse = normal * (1 + restitution) * speedProjection / ((1 / balls[i].Mass) + (1 / balls[j].Mass));
+                        balls[i].Velocity -= impulse / balls[i].Mass;
+                        balls[j].Velocity += impulse / balls[j].Mass;
+                        
+                        float overlapCorrection = (ballDiameter - distance) / 2;
+                        balls[i].Position -= normal * overlapCorrection;
+                        balls[j].Position += normal * overlapCorrection;
+
+                        System.Console.WriteLine(balls[i].Velocity);
+                        System.Console.WriteLine(balls[j].Velocity);
+
+                    }
+                }
+            }
+
+        
             base.OnUpdateFrame(args);
         }
 
