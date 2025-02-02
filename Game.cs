@@ -44,10 +44,12 @@ namespace spherical_pool_in_a_vacuum
             return vertices;
         }
 
-        const int ballCount = 20;
-        const float ballRadius = 20;
+        const int ballCount = 16;
+        const float ballRadius = 11.25f;
         const float ballDiameter = 2 * ballRadius;
-        const float restitution = 1.0f;
+        const float restitution = 0.7f;
+        const float root3over2 = 0.86603f;
+        const float friction = 0.1f;
 
         float[] vertices = CircleVertices(ballRadius, 20);
         //float[] vertices = SquareVertices(50f);
@@ -60,6 +62,24 @@ namespace spherical_pool_in_a_vacuum
         int shaderProgram;
         int width, height;
 
+        // relative coords (coord * ballDiameter)
+        float[] triangleXcoords = {
+            0f,
+            -0.5f, 0.5f,
+            -1f, 0f, 1f,
+            -1.5f, -0.5f, 0.5f, 1.5f,
+            -2f, -1f, 0f, 1f, 2f
+        };
+
+        // relative coords (250 + coord * root3over2 * ballDiameter)
+        float[] triangleYcoords = {
+            0,
+            1, 1,
+            2, 2, 2,
+            3, 3, 3, 3,
+            4, 4, 4, 4, 4
+        };
+
         List<RigidBody> balls;
         public Game(int width, int height) : base(GameWindowSettings.Default, NativeWindowSettings.Default)
         {
@@ -70,14 +90,15 @@ namespace spherical_pool_in_a_vacuum
 
             // list of balls
             balls = new List<RigidBody>();
-            for (int i = 0; i < ballCount; i++)
+            for (int i = 0; i < ballCount - 1; i++)
             {
-                float x = -width + 10 + i*(ballDiameter + 10);
-                float y = i;
-                
-                balls.Add(new RigidBody(new Vector2(x, y), new Vector2(100, 0f), 0f, 0f, 1f));
+                float x = triangleXcoords[i] * (ballDiameter+1);
+                float y = 250 + triangleYcoords[i] * root3over2 * (ballDiameter+1);
+                balls.Add(new RigidBody(new Vector2(x, y), new Vector2(0f, 0f), 0f, 0f, 1f));
             }
-            
+
+            balls.Add(new RigidBody(new Vector2(0, -250), new Vector2(10f, 3000f), 0f, 0f, 1f));
+
 
         }
 
@@ -89,10 +110,10 @@ namespace spherical_pool_in_a_vacuum
             this.height = e.Height;
             
             // only projection on resize
-            Matrix4 Transformation = Matrix4.CreateOrthographic(width, height, -1.0f, 1.0f);
+            Matrix4 projection = Matrix4.CreateOrthographic(width, height, -1.0f, 1.0f);
 
             GL.UseProgram(shaderProgram);
-            GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "Transformation"), false, ref Transformation);
+            GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "projection"), false, ref projection);
 
         }
         protected override void OnLoad()
@@ -275,7 +296,19 @@ namespace spherical_pool_in_a_vacuum
 
         protected override void OnUpdateFrame(FrameEventArgs args)
         {
-            float dt = (float)args.Time;
+            float dt = 0.0005f;
+
+            foreach (RigidBody ball in balls)
+            {
+                if (ball.Velocity.Length > 0.001f)
+                {
+                    ball.EffectForce(-ball.Velocity.Normalized() * friction);
+                }
+                else
+                {
+                    ball.Velocity = new Vector2(0,0);
+                }
+            }
 
             for (int i=0; i < ballCount; i++)
             {
