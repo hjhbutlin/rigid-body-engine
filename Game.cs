@@ -1,5 +1,3 @@
-//spherical pool in a vaccum
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +10,7 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 
-namespace spherical_pool_in_a_vacuum
+namespace particle_simulation
 {
     internal class Game : GameWindow {
 
@@ -44,17 +42,18 @@ namespace spherical_pool_in_a_vacuum
             return vertices;
         }
 
-        const int ballCount = 16;
-        const float ballRadius = 11.25f;
-        const float ballDiameter = 2 * ballRadius;
-        const float restitution = 0.7f;
-        const float root3over2 = 0.86603f;
+        const int particleCount = 5;
+        const float particleRadius = 15f;
+        const float particleDiameter = 2 * particleRadius;
+        const float restitution = 0.5f;
         const float friction = 0.1f;
+        const float tickRate = 1f/60f;
+        const float G = 1000f;
 
-        float[] vertices = CircleVertices(ballRadius, 20);
+        float[] vertices = CircleVertices(particleRadius, 20);
         //float[] vertices = SquareVertices(50f);
-        float[] instancePositions = new float[2 * ballCount];
-        float[] instanceRotations = new float[ballCount];
+        float[] instancePositions = new float[2 * particleCount];
+        float[] instanceRotations = new float[particleCount];
 
         int vao;
         int positionsVbo;
@@ -62,25 +61,7 @@ namespace spherical_pool_in_a_vacuum
         int shaderProgram;
         int width, height;
 
-        // relative coords (coord * ballDiameter)
-        float[] triangleXcoords = {
-            0f,
-            -0.5f, 0.5f,
-            -1f, 0f, 1f,
-            -1.5f, -0.5f, 0.5f, 1.5f,
-            -2f, -1f, 0f, 1f, 2f
-        };
-
-        // relative coords (250 + coord * root3over2 * ballDiameter)
-        float[] triangleYcoords = {
-            0,
-            1, 1,
-            2, 2, 2,
-            3, 3, 3, 3,
-            4, 4, 4, 4, 4
-        };
-
-        List<RigidBody> balls;
+        List<RigidBody> particles;
         public Game(int width, int height) : base(GameWindowSettings.Default, NativeWindowSettings.Default)
         {
             this.width = width;
@@ -88,17 +69,14 @@ namespace spherical_pool_in_a_vacuum
 
             CenterWindow(new Vector2i(width,height));
 
-            // list of balls
-            balls = new List<RigidBody>();
-            for (int i = 0; i < ballCount - 1; i++)
+            // list of particles
+            particles = new List<RigidBody>();
+            for (int i = 0; i < particleCount; i++)
             {
-                float x = triangleXcoords[i] * (ballDiameter+1);
-                float y = 250 + triangleYcoords[i] * root3over2 * (ballDiameter+1);
-                balls.Add(new RigidBody(new Vector2(x, y), new Vector2(0f, 0f), 0f, 0f, 1f));
+                float x = -width + 50 + 200*i;
+                float y = 10*i*i;
+                particles.Add(new RigidBody(new Vector2(x, y), new Vector2(0f, 0f), 0f, 0f, (1+i*i)));
             }
-
-            balls.Add(new RigidBody(new Vector2(0, -250), new Vector2(10f, 3000f), 0f, 0f, 1f));
-
 
         }
 
@@ -134,11 +112,11 @@ namespace spherical_pool_in_a_vacuum
             GL.EnableVertexAttribArray(0);
 
             // refresh instances arrays
-            for (int i=0; i < ballCount; i++)
+            for (int i=0; i < particleCount; i++)
             {
-                instancePositions[2*i] = balls[i].Position.X;
-                instancePositions[2*i + 1] = balls[i].Position.Y;
-                instanceRotations[i] = balls[i].Theta;
+                instancePositions[2*i] = particles[i].Position.X;
+                instancePositions[2*i + 1] = particles[i].Position.Y;
+                instanceRotations[i] = particles[i].Theta;
             }
             
             // POSITIONS vbo setup
@@ -190,9 +168,9 @@ namespace spherical_pool_in_a_vacuum
             GL.DeleteShader(vertexShader);
             GL.DeleteShader(fragmentShader);
 
-            foreach (RigidBody ball in balls)
+            foreach (RigidBody particle in particles)
             {
-            System.Console.WriteLine(ball.Position.X);
+            System.Console.WriteLine(particle.Position.X);
             }
 
             Matrix4 projection = Matrix4.CreateOrthographic(width, height, -1f, 1f);   
@@ -210,60 +188,60 @@ namespace spherical_pool_in_a_vacuum
 
         public void CheckAndResolveCollisions()
         {
-            for (int i = 0; i < ballCount; i++)
+            for (int i = 0; i < particleCount; i++)
             {
                 // check for collision at edge assuming rectangular boundaries and apply overlap correction
-                if (balls[i].Position.X - ballRadius <= -width)
+                if (particles[i].Position.X - particleRadius <= -width)
                 {
-                    balls[i].Velocity = new Vector2(balls[i].Velocity.X * -restitution, balls[i].Velocity.Y);
-                    balls[i].Position = new Vector2(-width + ballRadius, balls[i].Position.Y);
+                    particles[i].Velocity = new Vector2(particles[i].Velocity.X * -restitution, particles[i].Velocity.Y);
+                    particles[i].Position = new Vector2(-width + particleRadius, particles[i].Position.Y);
                 }
-                else if (balls[i].Position.X + ballRadius >= width)
+                else if (particles[i].Position.X + particleRadius >= width)
                 {
-                    balls[i].Velocity = new Vector2(balls[i].Velocity.X * -restitution, balls[i].Velocity.Y);
-                    balls[i].Position = new Vector2(width - ballRadius, balls[i].Position.Y);
-                }
-
-                if (balls[i].Position.Y - ballRadius <= -height)
-                {
-                    balls[i].Velocity = new Vector2(balls[i].Velocity.X, balls[i].Velocity.Y * -restitution);
-                    balls[i].Position = new Vector2(balls[i].Position.X, -height + ballRadius);
-                }
-                else if (balls[i].Position.Y + ballRadius >= height)
-                {
-                    balls[i].Velocity = new Vector2(balls[i].Velocity.X, balls[i].Velocity.Y * -restitution);
-                    balls[i].Position = new Vector2(balls[i].Position.X, height - ballRadius);
+                    particles[i].Velocity = new Vector2(particles[i].Velocity.X * -restitution, particles[i].Velocity.Y);
+                    particles[i].Position = new Vector2(width - particleRadius, particles[i].Position.Y);
                 }
 
-                for (int j = i + 1; j < ballCount; j++)
+                if (particles[i].Position.Y - particleRadius <= -height)
                 {
-                    Vector2 relativePosition = balls[i].Position - balls[j].Position;
+                    particles[i].Velocity = new Vector2(particles[i].Velocity.X, particles[i].Velocity.Y * -restitution);
+                    particles[i].Position = new Vector2(particles[i].Position.X, -height + particleRadius);
+                }
+                else if (particles[i].Position.Y + particleRadius >= height)
+                {
+                    particles[i].Velocity = new Vector2(particles[i].Velocity.X, particles[i].Velocity.Y * -restitution);
+                    particles[i].Position = new Vector2(particles[i].Position.X, height - particleRadius);
+                }
+
+                for (int j = i + 1; j < particleCount; j++)
+                {
+                    Vector2 relativePosition = particles[i].Position - particles[j].Position;
                     float distance = relativePosition.Length;
 
-                    if (distance <= ballDiameter)
+                    if (distance <= particleDiameter)
                     {
                         Vector2 normal = Vector2.Normalize(relativePosition);
-                        Vector2 relativeVelocity = balls[i].Velocity - balls[j].Velocity;
+                        Vector2 relativeVelocity = particles[i].Velocity - particles[j].Velocity;
                         float speedProjection = Vector2.Dot(relativeVelocity, normal);
 
-                        // no collision if balls are already moving apart
+                        // no collision if particles are already moving apart
                         if (speedProjection > 0)
                         {
                             return;
                         }
 
                         // reduced mass and restitution
-                        Vector2 impulse = normal * (1 + restitution) * speedProjection / ((1 / balls[i].Mass) + (1 / balls[j].Mass));
-                        balls[i].Velocity -= impulse / balls[i].Mass;
-                        balls[j].Velocity += impulse / balls[j].Mass;
+                        Vector2 impulse = normal * (1 + restitution) * speedProjection / ((1 / particles[i].Mass) + (1 / particles[j].Mass));
+                        particles[i].Velocity -= impulse / particles[i].Mass;
+                        particles[j].Velocity += impulse / particles[j].Mass;
                         
-                        // in case of overlap, move balls apart to be just touching
-                        float overlapCorrection = (ballDiameter - distance) / 2;
-                        balls[i].Position -= normal * overlapCorrection;
-                        balls[j].Position += normal * overlapCorrection;
+                        // in case of overlap, move particles apart to be just touching
+                        float overlapCorrection = (particleDiameter - distance) / 2;
+                        particles[i].Position -= normal * overlapCorrection;
+                        particles[j].Position += normal * overlapCorrection;
 
-                        System.Console.WriteLine(balls[i].Velocity);
-                        System.Console.WriteLine(balls[j].Velocity);
+                        System.Console.WriteLine(particles[i].Velocity);
+                        System.Console.WriteLine(particles[j].Velocity);
 
                     }
                 }
@@ -287,35 +265,39 @@ namespace spherical_pool_in_a_vacuum
 
             GL.UseProgram(shaderProgram);
             GL.BindVertexArray(vao);
-            GL.DrawArraysInstanced(PrimitiveType.TriangleFan, 0, vertices.Length / 2, ballCount);
+            GL.DrawArraysInstanced(PrimitiveType.TriangleFan, 0, vertices.Length / 2, particleCount);
 
             Context.SwapBuffers();
 
             base.OnRenderFrame(args);
         }
 
+
+        // separate here
         protected override void OnUpdateFrame(FrameEventArgs args)
         {
-            float dt = 0.0005f;
+            float dt = (float)args.Time;
 
-            foreach (RigidBody ball in balls)
+            for (int i=0; i < particleCount; i++)
             {
-                if (ball.Velocity.Length > 0.001f)
-                {
-                    ball.EffectForce(-ball.Velocity.Normalized() * friction);
-                }
-                else
-                {
-                    ball.Velocity = new Vector2(0,0);
-                }
+                particles[i].Update(dt);
+                instancePositions[2*i] = particles[i].Position.X;
+                instancePositions[2*i + 1] = particles[i].Position.Y;
+                instanceRotations[i] = particles[i].Theta;
             }
-
-            for (int i=0; i < ballCount; i++)
+            
+            for (int i=0; i<particleCount; i++)
             {
-                balls[i].Update(dt);
-                instancePositions[2*i] = balls[i].Position.X;
-                instancePositions[2*i + 1] = balls[i].Position.Y;
-                instanceRotations[i] = balls[i].Theta;
+                for (int j=0; j<particleCount; j++)
+                {
+                    if (i!=j)
+                    {
+                        Vector2 relativePos = particles[j].Position - particles[i].Position;
+                        float d = relativePos.Length;
+                        Vector2 rHat = relativePos.Normalized();
+                        particles[i].EffectForce(rHat * particles[i].Mass * particles[j].Mass * G/(d*d));
+                    }
+                }
             }
 
             CheckAndResolveCollisions();
