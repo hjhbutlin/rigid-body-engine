@@ -1,4 +1,4 @@
-//spherical pool in a vaccum
+// Need to fix checks for lots of collisions in quick succession
 
 using System;
 using System.Collections.Generic;
