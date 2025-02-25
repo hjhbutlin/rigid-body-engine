@@ -11,9 +11,18 @@ namespace spherical_pool_in_a_vacuum
             {                
                 sim.KeyDown += (KeyboardKeyEventArgs e) =>
                 {
-                    if (e.Key == Keys.Equal) sim.timeStep += 0.0002f;
-                    if (e.Key == Keys.Minus && sim.timeStep > 0.0002f) sim.timeStep -= 0.0002f;
+                    if (e.Key == Keys.Equal)
+                    {
+                        sim.timeStep += 0.0002f;
+                    }
+
+                    if (e.Key == Keys.Minus && sim.timeStep > 0.0002f)
+                    {
+                        sim.timeStep -= 0.0002f;
+                    }
+
                     Console.WriteLine($"Time Step: {sim.timeStep}");
+
                 };
                 sim.Run();
 

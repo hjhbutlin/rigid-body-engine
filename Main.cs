@@ -16,11 +16,18 @@ namespace spherical_pool_in_a_vacuum
 {
     internal class Sim : GameWindow {
         public float timeStep = 0.0005f;
+        public float friction = 0.0f;
+        const float ballRadius = 11.25f; //11.25 for correct pool scale
+        const float ballDiameter = 2 * ballRadius;
+        const float restitution = 1.0f;
+        const float root3over2 = 0.86603f;
+        const int ballCount = 16;
 
         public static float[] CircleVertices(float radius, int n)
         {
             float[] vertices = new float[n*2];
-            float angleStep = MathF.PI * 2 / n;
+            
+            float angleStep = MathF.PI * 2 / n;        
 
             for (int i = 0; i < n; i++)
             {
@@ -45,13 +52,6 @@ namespace spherical_pool_in_a_vacuum
             return vertices;
         }
 
-        const int ballCount = 4;
-        const float ballRadius = 40f; //11.25 for sim
-        const float ballDiameter = 2 * ballRadius;
-        const float restitution = 0.7f;
-        const float root3over2 = 0.86603f;
-        const float friction = 0.1f;
-
         float[] vertices = CircleVertices(ballRadius, 20);
         //float[] vertices = SquareVertices(50f);
         float[] instancePositions = new float[2 * ballCount];
@@ -62,6 +62,7 @@ namespace spherical_pool_in_a_vacuum
         int rotationsVbo;
         int shaderProgram;
         int width, height;
+
 
         // relative coords (coord * ballDiameter)
         float[] triangleXcoords = {
@@ -95,8 +96,8 @@ namespace spherical_pool_in_a_vacuum
             balls = new List<RigidBody>();
             for (int i = 0; i < ballCount - 1; i++)
             {
-                float x = triangleXcoords[i] * (ballDiameter+1);
-                float y = 250 + triangleYcoords[i] * root3over2 * (ballDiameter+1);
+                float x = triangleXcoords[i] * (ballDiameter+0.1f);
+                float y = 250 + triangleYcoords[i] * root3over2 * (ballDiameter+0.1f);
                 balls.Add(new RigidBody(new Vector2(x, y), new Vector2(0f, 0f), 0f, 0f, 1f));
             }
 
@@ -195,7 +196,7 @@ namespace spherical_pool_in_a_vacuum
 
             foreach (RigidBody ball in balls)
             {
-            System.Console.WriteLine(ball.Position.X);
+                System.Console.WriteLine(ball.Position.X);
             }
 
             Matrix4 projection = Matrix4.CreateOrthographic(width, height, -1f, 1f);   
