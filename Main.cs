@@ -15,6 +15,7 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 namespace spherical_pool_in_a_vacuum
 {
     internal class Sim : GameWindow {
+        public float timeStep = 0.0005f;
 
         public static float[] CircleVertices(float radius, int n)
         {
@@ -44,8 +45,8 @@ namespace spherical_pool_in_a_vacuum
             return vertices;
         }
 
-        const int ballCount = 16;
-        const float ballRadius = 11.25f;
+        const int ballCount = 4;
+        const float ballRadius = 40f; //11.25 for sim
         const float ballDiameter = 2 * ballRadius;
         const float restitution = 0.7f;
         const float root3over2 = 0.86603f;
@@ -81,6 +82,8 @@ namespace spherical_pool_in_a_vacuum
         };
 
         List<RigidBody> balls;
+
+        
         public Sim(int width, int height) : base(GameWindowSettings.Default, NativeWindowSettings.Default)
         {
             this.width = width;
@@ -97,7 +100,7 @@ namespace spherical_pool_in_a_vacuum
                 balls.Add(new RigidBody(new Vector2(x, y), new Vector2(0f, 0f), 0f, 0f, 1f));
             }
 
-            balls.Add(new RigidBody(new Vector2(0, -250), new Vector2(10f, 3000f), 0f, 0f, 1f));
+            balls.Add(new RigidBody(new Vector2(0, -250), new Vector2(0f, 1000f), 0f, 0f, 1f));
 
 
         }
@@ -296,7 +299,7 @@ namespace spherical_pool_in_a_vacuum
 
         protected override void OnUpdateFrame(FrameEventArgs args)
         {
-            float dt = 0.0005f;
+            float dt = timeStep;
 
             foreach (RigidBody ball in balls)
             {
