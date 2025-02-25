@@ -20,7 +20,7 @@ Collisions detection was _almost_ trivial, since the objects were circles, so I 
 
 <h2>Next Steps</h2>
 
-- To fix this problem, either by handling collisions as involving _n_ bodies rather than limiting the logic to just 2, e.g. solve a system of linear simulataneous equartions then use Gauss-Seidel relaxation (or something)
+- To fix this problem, either by handling collisions as involving _n_ bodies rather than limiting the logic to just 2, e.g. solve a system of linear simulataneous equartions then use Gauss-Seidel iteration (or something)
 
 - Physics logic for e.g. squares colliding. This makes collisions detection more complex, as well as the need to find where the collision happens, and to calculate torques etc..
 
