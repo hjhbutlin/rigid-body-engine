@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 
 namespace spherical_pool_in_a_vacuum
