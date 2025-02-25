@@ -14,7 +14,7 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace spherical_pool_in_a_vacuum
 {
-    internal class Game : GameWindow {
+    internal class Sim : GameWindow {
 
         public static float[] CircleVertices(float radius, int n)
         {
@@ -81,7 +81,7 @@ namespace spherical_pool_in_a_vacuum
         };
 
         List<RigidBody> balls;
-        public Game(int width, int height) : base(GameWindowSettings.Default, NativeWindowSettings.Default)
+        public Sim(int width, int height) : base(GameWindowSettings.Default, NativeWindowSettings.Default)
         {
             this.width = width;
             this.height = height;

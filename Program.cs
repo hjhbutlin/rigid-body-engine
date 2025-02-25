@@ -4,9 +4,9 @@
     {
         static void Main(string[] args)
         {
-            using(Game game = new Game(250,500))
+            using(Sim sim = new Sim(250,500))
             {
-                game.Run();
+                sim.Run();
             }
         }
     }
