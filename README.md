@@ -16,11 +16,9 @@ Getting the graphics working properly was the hardest part of this project, as i
 
 This project is centred on the interactions and collisions between rigid objects. Once the basics of OpenGL rendering were sorted, I began implementing a simple physics engine to deal with resolving collisions and friction. The engine has a modular design to facilitate the addition of e.g. gravity, and to make my life easier when I add the physics for collisions between not-circles (technical term: shapes that aren't circles). To this end, variables like angle of rotation and angular velocity were included in the initial code despite their redundancy in the circular world.
 
-Collisions detection was _almost_ trivial, since the objects were circles, so I only had to keep track of the relative distances between particles. However, once I set up the initial conditions for a pool break (15 balls in a hexagonal-close-packed triangle, 1 ball positioned some distance away moving quickly towards the triangle), I found that mutiple collisions in quick succession broke the simulation (3+ bodies colliding with each other at once on the same physics frame), as balls were keen to overlap.
+Since the objects are circles, collision detection is trivial, and the physics is simple.
 
 <h2>Next Steps</h2>
-
-- To fix this problem, either by handling collisions as involving _n_ bodies rather than limiting the logic to just 2, e.g. solve a system of linear simulataneous equartions then use Gauss-Seidel iteration (or something)
 
 - Physics logic for e.g. squares colliding. This makes collisions detection more complex, as well as the need to find where the collision happens, and to calculate torques etc..
 
