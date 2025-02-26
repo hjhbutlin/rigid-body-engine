@@ -1,3 +1,5 @@
+using OpenTK.Mathematics;
+
 namespace spherical_pool_in_a_vacuum
 {
     internal class PoolSetup {
@@ -42,9 +44,23 @@ namespace spherical_pool_in_a_vacuum
         }
         
 
-        // public float[] colours() {
-        //     return;
-        // }
+        public static float[] Colours() {
+
+            // red = {1.0f, 0.0f, 0.0f, 1.0f};
+            // yellow = {1.0f, 1.0f, 0.0f, 1.0f};
+            // black = {0.0f, 0.0f, 0.0f, 1.0f};
+
+            float[] output = {
+                1.0f, 0.0f, 0.0f, 1.0f,
+                1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+                1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+                1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+                1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+                1.0f, 1.0f, 1.0f, 1.0f
+            };
+
+            return output;
+        }
     }
 
 }

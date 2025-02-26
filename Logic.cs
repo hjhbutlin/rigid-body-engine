@@ -18,7 +18,7 @@ namespace spherical_pool_in_a_vacuum
         const float baseTimeStep = 0.0005f;
         public const float cueBallVy = 5000f;
         public float timeStep = baseTimeStep;
-        public float friction = 0.2f;
+        public float friction = 1.0f;
         const float ballRadius = 40f; //11.25 for correct pool scale
         const float ballDiameter = 2 * ballRadius;
         const float restitution = 0.8f;
@@ -28,10 +28,12 @@ namespace spherical_pool_in_a_vacuum
         float[] vertices = PoolSetup.CircleVertices(ballRadius, 20);
         float[] instancePositions = new float[2 * ballCount];
         float[] instanceRotations = new float[ballCount];
+        float[] instanceColours = PoolSetup.Colours();
 
         int vao;
         int positionsVbo;
         int rotationsVbo;
+        int coloursVbo;
         int shaderProgram;
         int width, height;
 
@@ -123,6 +125,16 @@ namespace spherical_pool_in_a_vacuum
             GL.EnableVertexAttribArray(2);
             GL.VertexAttribDivisor(2, 1);
 
+            // COLOURS vbo setup
+            coloursVbo = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ArrayBuffer,coloursVbo);
+            GL.BufferData(BufferTarget.ArrayBuffer,instanceColours.Length * 4 * sizeof(float), instanceColours, BufferUsageHint.DynamicDraw);
+            
+            // slot 3, floats per vertex, type, normalised?, stride, offset
+            GL.VertexAttribPointer(3, 4, VertexAttribPointerType.Float, false, 0, 0);
+            GL.EnableVertexAttribArray(3);
+            GL.VertexAttribDivisor(3, 1);
+
 
             // unbind vbo
             GL.BindBuffer(BufferTarget.ArrayBuffer, 0);            
@@ -144,8 +156,6 @@ namespace spherical_pool_in_a_vacuum
             GL.AttachShader(shaderProgram, vertexShader);
             GL.AttachShader(shaderProgram, fragmentShader);
 
-
-
             GL.LinkProgram(shaderProgram);
 
             // delete all shaders
@@ -160,7 +170,7 @@ namespace spherical_pool_in_a_vacuum
             Matrix4 projection = Matrix4.CreateOrthographic(width, height, -1f, 1f);   
             GL.UseProgram(shaderProgram);
             GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "Projection"), false, ref projection);
-
+            
             
         }
 
