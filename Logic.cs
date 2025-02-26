@@ -15,45 +15,17 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 namespace spherical_pool_in_a_vacuum
 {
     internal class Sim : GameWindow {
-        public float timeStep = 0.0005f;
-        public float friction = 0.1f;
+        const float baseTimeStep = 0.0005f;
+        public const float cueBallVy = 5000f;
+        public float timeStep = baseTimeStep;
+        public float friction = 0.2f;
         const float ballRadius = 40f; //11.25 for correct pool scale
         const float ballDiameter = 2 * ballRadius;
         const float restitution = 0.8f;
         const float root3over2 = 0.86603f;
-        const int ballCount = 11;
+        const int ballCount = 16;
 
-        public static float[] CircleVertices(float radius, int n)
-        {
-            float[] vertices = new float[n*2];
-            
-            float angleStep = MathF.PI * 2 / n;        
-
-            for (int i = 0; i < n; i++)
-            {
-                float angle = i * angleStep;
-                vertices[i * 2] = radius * MathF.Cos(angle);
-                vertices[i * 2 + 1] = radius * MathF.Sin(angle);
-            }
-
-            return vertices;
-        }
-        public static float[] SquareVertices(float sideLength)
-        {
-            float halfS = sideLength/2;
-            float[] vertices =
-            {
-                halfS, halfS,
-                halfS, -halfS,
-                -halfS, -halfS,
-                -halfS, halfS
-            };
-
-            return vertices;
-        }
-
-        float[] vertices = CircleVertices(ballRadius, 20);
-        //float[] vertices = SquareVertices(50f);
+        float[] vertices = PoolSetup.CircleVertices(ballRadius, 20);
         float[] instancePositions = new float[2 * ballCount];
         float[] instanceRotations = new float[ballCount];
 
@@ -65,24 +37,12 @@ namespace spherical_pool_in_a_vacuum
 
 
         // relative coords (coord * ballDiameter)
-        float[] triangleXcoords = {
-            0f,
-            -0.5f, 0.5f,
-            -1f, 0f, 1f,
-            -1.5f, -0.5f, 0.5f, 1.5f,
-            -2f, -1f, 0f, 1f, 2f
-        };
+        float[] rackXcoords = PoolSetup.RackX();
 
         // relative coords (250 + coord * root3over2 * ballDiameter)
-        float[] triangleYcoords = {
-            0,
-            1, 1,
-            2, 2, 2,
-            3, 3, 3, 3,
-            4, 4, 4, 4, 4
-        };
+        float[] rackYcoords = PoolSetup.RackY();
 
-        List<RigidBody> balls;
+        public List<RigidBody> balls;
 
         
         public Sim(int width, int height) : base(GameWindowSettings.Default, NativeWindowSettings.Default)
@@ -96,14 +56,12 @@ namespace spherical_pool_in_a_vacuum
             balls = new List<RigidBody>();
             for (int i = 0; i < ballCount - 1; i++)
             {
-                float x = triangleXcoords[i] * (ballDiameter+0.1f);
-                float y = 250 + triangleYcoords[i] * root3over2 * (ballDiameter+0.1f);
+                float x = rackXcoords[i] * (ballDiameter+0.1f);
+                float y = 250 + rackYcoords[i] * root3over2 * (ballDiameter+0.1f);
                 balls.Add(new RigidBody(new Vector2(x, y), new Vector2(0f, 0f), 0f, 0f, 1f));
             }
 
-            balls.Add(new RigidBody(new Vector2(0, -250), new Vector2(0f, 1000f), 0f, 0f, 1f));
-
-
+            balls.Add(new RigidBody(new Vector2(0, -250), new Vector2(0f, 0f), 0f, 0f, 1f));
         }
 
         protected override void OnResize(ResizeEventArgs e)
@@ -202,6 +160,8 @@ namespace spherical_pool_in_a_vacuum
             Matrix4 projection = Matrix4.CreateOrthographic(width, height, -1f, 1f);   
             GL.UseProgram(shaderProgram);
             GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "Projection"), false, ref projection);
+
+            
         }
 
         protected override void OnUnload()
@@ -216,60 +176,11 @@ namespace spherical_pool_in_a_vacuum
         {
             for (int i = 0; i < ballCount; i++)
             {
-                // check for collision at edge assuming rectangular boundaries and apply overlap correction
-                if (balls[i].Position.X - ballRadius <= -width)
-                {
-                    balls[i].Velocity = new Vector2(balls[i].Velocity.X * -restitution, balls[i].Velocity.Y);
-                    balls[i].Position = new Vector2(-width + ballRadius, balls[i].Position.Y);
-                }
-                else if (balls[i].Position.X + ballRadius >= width)
-                {
-                    balls[i].Velocity = new Vector2(balls[i].Velocity.X * -restitution, balls[i].Velocity.Y);
-                    balls[i].Position = new Vector2(width - ballRadius, balls[i].Position.Y);
-                }
-
-                if (balls[i].Position.Y - ballRadius <= -height)
-                {
-                    balls[i].Velocity = new Vector2(balls[i].Velocity.X, balls[i].Velocity.Y * -restitution);
-                    balls[i].Position = new Vector2(balls[i].Position.X, -height + ballRadius);
-                }
-                else if (balls[i].Position.Y + ballRadius >= height)
-                {
-                    balls[i].Velocity = new Vector2(balls[i].Velocity.X, balls[i].Velocity.Y * -restitution);
-                    balls[i].Position = new Vector2(balls[i].Position.X, height - ballRadius);
-                }
+                balls[i].EdgeCheckAndResolve(ballRadius, width, height, restitution);
 
                 for (int j = i + 1; j < ballCount; j++)
                 {
-                    Vector2 relativePosition = balls[i].Position - balls[j].Position;
-                    float distance = relativePosition.Length;
-
-                    if (distance <= ballDiameter)
-                    {
-                        Vector2 normal = Vector2.Normalize(relativePosition);
-                        Vector2 relativeVelocity = balls[i].Velocity - balls[j].Velocity;
-                        float speedProjection = Vector2.Dot(relativeVelocity, normal);
-
-                        // no collision if balls are already moving apart
-                        if (speedProjection > 0)
-                        {
-                            return;
-                        }
-
-                        // reduced mass and restitution
-                        Vector2 impulse = normal * (1 + restitution) * speedProjection / ((1 / balls[i].Mass) + (1 / balls[j].Mass));
-                        balls[i].Velocity -= impulse / balls[i].Mass;
-                        balls[j].Velocity += impulse / balls[j].Mass;
-                        
-                        // in case of overlap, move balls apart to be just touching
-                        float overlapCorrection = (ballDiameter - distance) / 2;
-                        balls[i].Position -= normal * overlapCorrection;
-                        balls[j].Position += normal * overlapCorrection;
-
-                        System.Console.WriteLine(balls[i].Velocity);
-                        System.Console.WriteLine(balls[j].Velocity);
-
-                    }
+                    RigidBody.CollisionCheckAndResolve(balls[i], balls[j],ballRadius,restitution);
                 }
             }
         }
@@ -306,7 +217,7 @@ namespace spherical_pool_in_a_vacuum
             {
                 if (ball.Velocity.Length > 0.001f)
                 {
-                    ball.EffectForce(-ball.Velocity.Normalized() * friction);
+                    ball.EffectForce(-ball.Velocity.Normalized() * friction * timeStep / baseTimeStep);
                 }
                 else
                 {
