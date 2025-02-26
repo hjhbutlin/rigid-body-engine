@@ -15,9 +15,8 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 namespace spherical_pool_in_a_vacuum
 {
     internal class Sim : GameWindow {
-        const float baseTimeStep = 0.0005f;
         public const float cueBallVy = 20000f;
-        public float timeStep = baseTimeStep;
+        public const float timeStep = 0.0005f;
         public float friction = 1.0f;
         const float ballRadius = 22.5f; //11.25 for a window size 250w 500h
         const float ballDiameter = 2 * ballRadius;
@@ -225,9 +224,9 @@ namespace spherical_pool_in_a_vacuum
 
             foreach (RigidBody ball in balls)
             {
-                if (ball.Velocity.Length > 0.001f)
+                if (ball.Velocity.Length > 1f)
                 {
-                    ball.EffectForce(-ball.Velocity.Normalized() * friction * timeStep / baseTimeStep);
+                    ball.EffectForce(-ball.Velocity.Normalized() * friction);
                 }
                 else
                 {
