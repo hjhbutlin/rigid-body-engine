@@ -16,12 +16,12 @@ namespace spherical_pool_in_a_vacuum
 {
     internal class Sim : GameWindow {
         const float baseTimeStep = 0.0005f;
-        public const float cueBallVy = 5000f;
+        public const float cueBallVy = 20000f;
         public float timeStep = baseTimeStep;
         public float friction = 1.0f;
-        const float ballRadius = 40f; //11.25 for correct pool scale
+        const float ballRadius = 22.5f; //11.25 for a window size 250w 500h
         const float ballDiameter = 2 * ballRadius;
-        const float restitution = 0.8f;
+        const float restitution = 0.7f;
         const float root3over2 = 0.86603f;
         const int ballCount = 16;
 

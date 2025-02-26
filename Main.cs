@@ -15,11 +15,13 @@ namespace spherical_pool_in_a_vacuum
                     if (e.Key == Keys.Equal)
                     {
                         sim.timeStep += 0.0002f;
+                        Console.WriteLine($"Time Step: {sim.timeStep}");
                     }
 
                     if (e.Key == Keys.Minus && sim.timeStep > 0.0002f)
                     {
                         sim.timeStep -= 0.0002f;
+                        Console.WriteLine($"Time Step: {sim.timeStep}");
                     }
 
                     if (e.Key == Keys.Space)
@@ -27,7 +29,6 @@ namespace spherical_pool_in_a_vacuum
                         sim.balls[^1].Velocity = new Vector2(0f,Sim.cueBallVy);
                     }
 
-                    Console.WriteLine($"Time Step: {sim.timeStep}");
 
                 };
                 sim.Run();
