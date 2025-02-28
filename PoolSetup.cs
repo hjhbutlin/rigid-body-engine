@@ -1,6 +1,9 @@
+using OpenTK.Mathematics;
+
 namespace spherical_pool_in_a_vacuum
 {
-    public class PoolSetup {
+    public class PoolSetup
+    {
         public static float[] RackX() {
             float[] output = {
                 0f,
@@ -41,20 +44,29 @@ namespace spherical_pool_in_a_vacuum
             return vertices;
         }
         
+        public class Colours
+        {
+            public static readonly Vector4 Red = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
+            public static readonly Vector4 Yellow = new Vector4(1.0f, 1.0f, 0.0f, 1.0f);
+            public static readonly Vector4 Black = new Vector4(0.0f, 0.0f, 0.0f, 1.0f);
+            public static readonly Vector4 White = new Vector4(0.9f, 0.9f, 0.9f, 1.0f);
+        }
 
-        public static float[] Colours() {
+        public static Vector4[] InitialColours()
+        {
+            //     r
+            //    y r
+            //   r b y
+            //  y r y r
+            // r y y r y
 
-            // red = {1.0f, 0.0f, 0.0f, 1.0f};
-            // yellow = {1.0f, 1.0f, 0.0f, 1.0f};
-            // black = {0.0f, 0.0f, 0.0f, 1.0f};
-
-            float[] output = {
-                1.0f, 0.0f, 0.0f, 1.0f,
-                1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-                1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
-                1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-                1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
-                1.0f, 1.0f, 1.0f, 1.0f
+            Vector4[] output = {
+                Colours.Red,
+                Colours.Yellow, Colours.Red,
+                Colours.Red, Colours.Black, Colours.Yellow,
+                Colours.Yellow, Colours.Red, Colours.Yellow, Colours.Red,
+                Colours.Red, Colours.Yellow, Colours.Yellow, Colours.Red, Colours.Yellow,
+                Colours.White
             };
 
             return output;

@@ -35,7 +35,7 @@ namespace spherical_pool_in_a_vacuum
         float[] vertices = PoolSetup.CircleVertices(ballRadius, 20);
         float[] instancePositions = new float[2 * ballCount];
         float[] instanceRotations = new float[ballCount];
-        float[] instanceColours = PoolSetup.Colours();
+        Vector4[] instanceColours = PoolSetup.InitialColours();
 
         float[] bgVertices =
         {
@@ -69,10 +69,11 @@ namespace spherical_pool_in_a_vacuum
             {
                 float x = rackXcoords[i] * (ballDiameter+0.1f);
                 float y = 300 + rackYcoords[i] * root3over2 * (ballDiameter+0.1f);
-                balls.Add(new RigidBody(new Vector2(x, y), new Vector2(0f, 0f), 0f, 0f, 1f));
+                balls.Add(new RigidBody(new Vector2(x, y), new Vector2(0f, 0f), 0f, 0f, 1f, false));
             }
 
-            balls.Add(new RigidBody(new Vector2(0, -375), new Vector2(0f, 0f), 0f, 0f, 1f));
+            // CUE BALL
+            balls.Add(new RigidBody(new Vector2(0, -375), new Vector2(0f, 0f),0f, 0f, 1f, false));
         }
 
         protected override void OnResize(ResizeEventArgs e)
@@ -260,11 +261,15 @@ namespace spherical_pool_in_a_vacuum
         {
             for (int i = 0; i < ballCount; i++)
             {
-                balls[i].EdgeCheckAndResolve(width, height, railRestitution);
-
-                for (int j = i + 1; j < ballCount; j++)
+                if (!balls[i].Potted)
                 {
-                    RigidBody.CollisionCheckAndResolve(balls[i], balls[j],collisionRestitution);
+                    balls[i].EdgeCheckAndResolve(width, height, railRestitution);
+                
+
+                    for (int j = i + 1; j < ballCount; j++)
+                    {
+                        RigidBody.CollisionCheckAndResolve(balls[i], balls[j],collisionRestitution);
+                    }
                 }
             }
         }
@@ -329,8 +334,8 @@ namespace spherical_pool_in_a_vacuum
             {
                 if (balls[i].IsPotted(width,height))
                 {
-                    balls.RemoveAt(i);
-                    ballCount--;
+                    balls[i].Potted = true;
+                    balls[i].Position = new Vector2(-4000f, i*ballDiameter*2);
                 }
             }
 

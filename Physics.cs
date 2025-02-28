@@ -9,14 +9,16 @@ namespace spherical_pool_in_a_vacuum
         public float Theta; // angle of rotation
         public float Omega; // rotational velocity
         public float Mass;
+        public bool Potted;
 
-        public RigidBody(Vector2 position, Vector2 velocity, float theta, float omega, float mass)
+        public RigidBody(Vector2 position, Vector2 velocity, float theta, float omega, float mass, bool potted)
         {
             Position = position;
             Velocity = velocity;
             Theta = theta;
             Omega = omega;
             Mass = mass;
+            Potted = potted;
         }
 
         public void EffectForce(Vector2 force)
@@ -86,26 +88,26 @@ namespace spherical_pool_in_a_vacuum
         public void EdgeCheckAndResolve(int width, int height, float restitution)
         {
             if (Position.X - Sim.ballRadius <= -width + Sim.boundaryLeft)
-                {
-                    Velocity = new Vector2(Velocity.X * -restitution, Velocity.Y);
-                    Position = new Vector2(-width + Sim.ballRadius + Sim.boundaryLeft, Position.Y);
-                }
-                else if (Position.X + Sim.ballRadius >= width - Sim.boundaryRight)
-                {
-                    Velocity = new Vector2(Velocity.X * -restitution, Velocity.Y);
-                    Position = new Vector2(width - Sim.ballRadius - Sim.boundaryRight, Position.Y);
-                }
+            {
+                Velocity = new Vector2(Velocity.X * -restitution, Velocity.Y);
+                Position = new Vector2(-width + Sim.ballRadius + Sim.boundaryLeft, Position.Y);
+            }
+            else if (Position.X + Sim.ballRadius >= width - Sim.boundaryRight)
+            {
+                Velocity = new Vector2(Velocity.X * -restitution, Velocity.Y);
+                Position = new Vector2(width - Sim.ballRadius - Sim.boundaryRight, Position.Y);
+            }
 
-                if (Position.Y - Sim.ballRadius <= -height + Sim.boundaryTop)
-                {
-                    Velocity = new Vector2(Velocity.X, Velocity.Y * -restitution);
-                    Position = new Vector2(Position.X, -height + Sim.ballRadius + Sim.boundaryTop);
-                }
-                else if (Position.Y + Sim.ballRadius >= height - Sim.boundaryBottom)
-                {
-                    Velocity = new Vector2(Velocity.X, Velocity.Y * -restitution);
-                    Position = new Vector2(Position.X, height - Sim.ballRadius - Sim.boundaryBottom);
-                }
+            if (Position.Y - Sim.ballRadius <= -height + Sim.boundaryTop)
+            {
+                Velocity = new Vector2(Velocity.X, Velocity.Y * -restitution);
+                Position = new Vector2(Position.X, -height + Sim.ballRadius + Sim.boundaryTop);
+            }
+            else if (Position.Y + Sim.ballRadius >= height - Sim.boundaryBottom)
+            {
+                Velocity = new Vector2(Velocity.X, Velocity.Y * -restitution);
+                Position = new Vector2(Position.X, height - Sim.ballRadius - Sim.boundaryBottom);
+            }
         }
         
         public static void CollisionCheckAndResolve(RigidBody ball1, RigidBody ball2, float restitution) {
