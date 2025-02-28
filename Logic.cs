@@ -1,6 +1,7 @@
 // Need to fix checks for lots of collisions in quick succession
 
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -11,31 +12,40 @@ using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
+using StbImageSharp;
 
 namespace spherical_pool_in_a_vacuum
 {
-    internal class Sim : GameWindow {
-        public const float cueBallVy = 20000f;
+    public class Sim : GameWindow {
+        public const float cueBallVy = 20000f; // temp
         public const float timeStep = 0.0005f;
         public float friction = 1.0f;
-        const float ballRadius = 22.5f; //11.25 for a window size 250w 500h
-        const float ballDiameter = 2 * ballRadius;
-        const float restitution = 0.7f;
+        public const float ballRadius = 22.5f; // 22.5 for a window size 500x 850y
+        public const float ballDiameter = 2 * ballRadius;
+        const float collisionRestitution = 0.8f;
+        const float railRestitution = 0.7f;
         const float root3over2 = 0.86603f;
-        const int ballCount = 16;
+        protected static int ballCount = 16;
+        public const float boundaryLeftFrac = 2 * 66f/500f;
+        public const float boundaryRightFrac = 2 * 72f/500f;
+        public const float boundaryTopFrac = 2 * 67f/850f;
+        public const float boundaryBottomFrac = 2 * 69f/850f;
+        public static float boundaryLeft, boundaryRight, boundaryTop, boundaryBottom;
 
         float[] vertices = PoolSetup.CircleVertices(ballRadius, 20);
         float[] instancePositions = new float[2 * ballCount];
         float[] instanceRotations = new float[ballCount];
         float[] instanceColours = PoolSetup.Colours();
 
-        int vao;
-        int positionsVbo;
-        int rotationsVbo;
-        int coloursVbo;
-        int shaderProgram;
-        int width, height;
-
+        float[] bgVertices =
+        {
+            // positions     // texture cords
+            -1.0f, 1.0f,  0.0f, 0.0f, // bottom left
+            1.0f, 1.0f,  1.0f, 0.0f, // bottom right
+            -1.0f,  -1.0f,  0.0f, 1.0f, // top left
+            1.0f,  -1.0f,  1.0f, 1.0f  // top right
+        };
+        int bgShader, bgVao, bgTexture, vao, positionsVbo, rotationsVbo, coloursVbo, shaderProgram, width, height;
 
         // relative coords (coord * ballDiameter)
         float[] rackXcoords = PoolSetup.RackX();
@@ -58,19 +68,24 @@ namespace spherical_pool_in_a_vacuum
             for (int i = 0; i < ballCount - 1; i++)
             {
                 float x = rackXcoords[i] * (ballDiameter+0.1f);
-                float y = 250 + rackYcoords[i] * root3over2 * (ballDiameter+0.1f);
+                float y = 300 + rackYcoords[i] * root3over2 * (ballDiameter+0.1f);
                 balls.Add(new RigidBody(new Vector2(x, y), new Vector2(0f, 0f), 0f, 0f, 1f));
             }
 
-            balls.Add(new RigidBody(new Vector2(0, -250), new Vector2(0f, 0f), 0f, 0f, 1f));
+            balls.Add(new RigidBody(new Vector2(0, -375), new Vector2(0f, 0f), 0f, 0f, 1f));
         }
 
         protected override void OnResize(ResizeEventArgs e)
         {
             base.OnResize(e);
             GL.Viewport(0,0,e.Width,e.Height);
-            this.width = e.Width;
-            this.height = e.Height;
+            width = e.Width;
+            height = e.Height;
+
+            boundaryLeft = boundaryLeftFrac * width;
+            boundaryRight = boundaryRightFrac * width;
+            boundaryTop = boundaryTopFrac * height;
+            boundaryBottom = boundaryBottomFrac * height;
             
             // only projection on resize
             Matrix4 projection = Matrix4.CreateOrthographic(width, height, -1.0f, 1.0f);
@@ -79,9 +94,54 @@ namespace spherical_pool_in_a_vacuum
             GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "projection"), false, ref projection);
 
         }
+
+        public int LoadTexture()
+        {
+            int texture;
+            GL.GenTextures(1, out texture);
+            GL.BindTexture(TextureTarget.Texture2D, texture);
+
+            using (Stream stream = File.OpenRead("./pool_bg.jpg"))
+            {
+                ImageResult image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
+                GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba,
+                    image.Width, image.Height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, image.Data);
+            }
+
+            // texture settings
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+
+            GL.BindTexture(TextureTarget.Texture2D, 0);
+            return texture;
+        }
         protected override void OnLoad()
         {
             base.OnLoad();
+
+            boundaryLeft = boundaryLeftFrac * width;
+            boundaryRight = boundaryRightFrac * width;
+            boundaryTop = boundaryTopFrac * height;
+            boundaryBottom = boundaryBottomFrac * height;
+
+            bgTexture = LoadTexture();
+
+            // set up background VAO & VBO
+            bgVao = GL.GenVertexArray();
+            int bgVbo = GL.GenBuffer();
+
+            GL.BindVertexArray(bgVao);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, bgVbo);
+            GL.BufferData(BufferTarget.ArrayBuffer, bgVertices.Length * sizeof(float), bgVertices, BufferUsageHint.StaticDraw);
+
+            GL.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, 4 * sizeof(float), 0);
+            GL.EnableVertexAttribArray(0);
+            GL.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, 4 * sizeof(float), 2 * sizeof(float));
+            GL.EnableVertexAttribArray(1);
+
+            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
 
             // set up VAO
             vao = GL.GenVertexArray();
@@ -142,6 +202,21 @@ namespace spherical_pool_in_a_vacuum
             GL.BindVertexArray(0);
 
             // create shader program
+            bgShader = GL.CreateProgram();
+            int bgVertexShader = GL.CreateShader(ShaderType.VertexShader);
+            GL.ShaderSource(bgVertexShader, LoadShaderSource("Background.vert"));
+            GL.CompileShader(bgVertexShader);
+
+            int bgFragmentShader = GL.CreateShader(ShaderType.FragmentShader);
+            GL.ShaderSource(bgFragmentShader, LoadShaderSource("Background.frag"));
+            GL.CompileShader(bgFragmentShader);
+
+            GL.AttachShader(bgShader, bgVertexShader);
+            GL.AttachShader(bgShader, bgFragmentShader);
+            GL.LinkProgram(bgShader);
+            GL.DeleteShader(bgVertexShader);
+            GL.DeleteShader(bgFragmentShader);
+
             shaderProgram = GL.CreateProgram();
 
             int vertexShader = GL.CreateShader(ShaderType.VertexShader);
@@ -185,19 +260,27 @@ namespace spherical_pool_in_a_vacuum
         {
             for (int i = 0; i < ballCount; i++)
             {
-                balls[i].EdgeCheckAndResolve(ballRadius, width, height, restitution);
+                balls[i].EdgeCheckAndResolve(width, height, railRestitution);
 
                 for (int j = i + 1; j < ballCount; j++)
                 {
-                    RigidBody.CollisionCheckAndResolve(balls[i], balls[j],ballRadius,restitution);
+                    RigidBody.CollisionCheckAndResolve(balls[i], balls[j],collisionRestitution);
                 }
             }
         }
 
         protected override void OnRenderFrame(FrameEventArgs args)
         {
-            GL.ClearColor(0.2f,0.2f,0.2f,1.0f);
+            GL.ClearColor(0f,0.2f,0f,1.0f);
             GL.Clear(ClearBufferMask.ColorBufferBit);
+
+            GL.Clear(ClearBufferMask.ColorBufferBit);
+
+            GL.UseProgram(bgShader);
+            GL.BindVertexArray(bgVao);
+            GL.BindTexture(TextureTarget.Texture2D, bgTexture);
+            GL.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
+            GL.BindVertexArray(0);
 
             // draw objects            
             GL.BindBuffer(BufferTarget.ArrayBuffer,positionsVbo);
@@ -240,6 +323,15 @@ namespace spherical_pool_in_a_vacuum
                 instancePositions[2*i] = balls[i].Position.X;
                 instancePositions[2*i + 1] = balls[i].Position.Y;
                 instanceRotations[i] = balls[i].Theta;
+            }
+
+            for (int i=ballCount - 1; i > -1; i--)
+            {
+                if (balls[i].IsPotted(width,height))
+                {
+                    balls.RemoveAt(i);
+                    ballCount--;
+                }
             }
 
             CheckAndResolveCollisions();

@@ -1,8 +1,6 @@
-using OpenTK.Mathematics;
-
 namespace spherical_pool_in_a_vacuum
 {
-    internal class PoolSetup {
+    public class PoolSetup {
         public static float[] RackX() {
             float[] output = {
                 0f,
