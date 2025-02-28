@@ -19,4 +19,3 @@ Getting the graphics working properly was the hardest part of this project, as i
 - To add debug graphics like velocity arrows, system energy, etc., as well as debug tools like slowing down time etc.
 
 - To extend this to 3D with a pan-able camera
-
