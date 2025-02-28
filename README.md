@@ -1,4 +1,4 @@
-<h1>Rigid Body Engine in C#</h1>
+<h1>8 Ball Pool in C#</h1>
 
 <h2>Project Motivation</h2>
 
