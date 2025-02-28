@@ -17,7 +17,12 @@ using StbImageSharp;
 namespace spherical_pool_in_a_vacuum
 {
     public class Sim : GameWindow {
-        public const float cueBallVy = 20000f; // temp
+        public const float maxV = 25000f;
+        public const float minV = 500f;
+
+        public static float cueBallV = 10000f; // base
+        public const float directionLengthFactor = 0.01f;
+        public static float directionLength = cueBallV * directionLengthFactor;
         public const float timeStep = 0.0005f;
         public float friction = 1.0f;
         public const float ballRadius = 22.5f; // 22.5 for a window size 500x 850y
@@ -45,7 +50,15 @@ namespace spherical_pool_in_a_vacuum
             -1.0f,  -1.0f,  0.0f, 1.0f, // top left
             1.0f,  -1.0f,  1.0f, 1.0f  // top right
         };
-        int bgShader, bgVao, bgTexture, vao, positionsVbo, rotationsVbo, coloursVbo, shaderProgram, width, height;
+
+        float[] directionVertices =
+        {
+            0.0f, 0.0f,
+            0.0f, directionLength
+        };
+        public float direction = 0f;
+
+        int bgShaderProgram, directionShaderProgram, bgVao, directionVao, bgTexture, vao, positionsVbo, rotationsVbo, coloursVbo, directionVbo,shaderProgram, width, height;
 
         // relative coords (coord * ballDiameter)
         float[] rackXcoords = PoolSetup.RackX();
@@ -96,7 +109,7 @@ namespace spherical_pool_in_a_vacuum
 
         }
 
-        public int LoadTexture()
+        public static int LoadTexture()
         {
             int texture;
             GL.GenTextures(1, out texture);
@@ -164,7 +177,11 @@ namespace spherical_pool_in_a_vacuum
                 instancePositions[2*i + 1] = balls[i].Position.Y;
                 instanceRotations[i] = balls[i].Theta;
             }
-            
+            directionVertices[0] = balls[^1].Position.X;
+            directionVertices[1] = balls[^1].Position.Y;
+            directionVertices[2] = balls[^1].Position.X + directionLength * MathF.Sin(direction);
+            directionVertices[3] = balls[^1].Position.Y + directionLength * MathF.Cos(direction);
+
             // POSITIONS vbo setup
             positionsVbo = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer,positionsVbo);
@@ -195,15 +212,26 @@ namespace spherical_pool_in_a_vacuum
             GL.EnableVertexAttribArray(3);
             GL.VertexAttribDivisor(3, 1);
 
+            // direction indicator vao
+            directionVao = GL.GenVertexArray();
+            GL.BindVertexArray(directionVao);
+
+            directionVbo = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ArrayBuffer, directionVbo);
+            GL.BufferData(BufferTarget.ArrayBuffer, directionVertices.Length * sizeof(float), directionVertices, BufferUsageHint.DynamicDraw);
+
+            GL.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, 0, 0);
+            GL.EnableVertexAttribArray(0);
 
             // unbind vbo
-            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);            
+            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
 
             // unbind vao
             GL.BindVertexArray(0);
 
-            // create shader program
-            bgShader = GL.CreateProgram();
+            // create shader programs
+            // BACKGROUND
+            bgShaderProgram = GL.CreateProgram();
             int bgVertexShader = GL.CreateShader(ShaderType.VertexShader);
             GL.ShaderSource(bgVertexShader, LoadShaderSource("Background.vert"));
             GL.CompileShader(bgVertexShader);
@@ -212,14 +240,15 @@ namespace spherical_pool_in_a_vacuum
             GL.ShaderSource(bgFragmentShader, LoadShaderSource("Background.frag"));
             GL.CompileShader(bgFragmentShader);
 
-            GL.AttachShader(bgShader, bgVertexShader);
-            GL.AttachShader(bgShader, bgFragmentShader);
-            GL.LinkProgram(bgShader);
+            GL.AttachShader(bgShaderProgram, bgVertexShader);
+            GL.AttachShader(bgShaderProgram, bgFragmentShader);
+            GL.LinkProgram(bgShaderProgram);
+
             GL.DeleteShader(bgVertexShader);
             GL.DeleteShader(bgFragmentShader);
 
+            // BALLS
             shaderProgram = GL.CreateProgram();
-
             int vertexShader = GL.CreateShader(ShaderType.VertexShader);
             GL.ShaderSource(vertexShader, LoadShaderSource("Default.vert"));
             GL.CompileShader(vertexShader);
@@ -230,18 +259,29 @@ namespace spherical_pool_in_a_vacuum
 
             GL.AttachShader(shaderProgram, vertexShader);
             GL.AttachShader(shaderProgram, fragmentShader);
-
             GL.LinkProgram(shaderProgram);
 
-            // delete all shaders
             GL.DeleteShader(vertexShader);
             GL.DeleteShader(fragmentShader);
 
-            foreach (RigidBody ball in balls)
-            {
-                System.Console.WriteLine(ball.Position.X);
-            }
+            // DIRECTION INDICATOR
+            directionShaderProgram = GL.CreateProgram();
+            int directionVertexShader = GL.CreateShader(ShaderType.VertexShader);
+            GL.ShaderSource(directionVertexShader, LoadShaderSource("Direction.vert"));
+            GL.CompileShader(directionVertexShader);
 
+            int directionFragmentShader = GL.CreateShader(ShaderType.FragmentShader);
+            GL.ShaderSource(directionFragmentShader, LoadShaderSource("Direction.frag"));
+            GL.CompileShader(directionFragmentShader);
+
+            GL.AttachShader(directionShaderProgram, directionVertexShader);
+            GL.AttachShader(directionShaderProgram, directionFragmentShader);
+            GL.LinkProgram(directionShaderProgram);
+
+            GL.DeleteShader(directionVertexShader);
+            GL.DeleteShader(directionFragmentShader);
+
+            // 
             Matrix4 projection = Matrix4.CreateOrthographic(width, height, -1f, 1f);   
             GL.UseProgram(shaderProgram);
             GL.UniformMatrix4(GL.GetUniformLocation(shaderProgram, "Projection"), false, ref projection);
@@ -276,18 +316,18 @@ namespace spherical_pool_in_a_vacuum
 
         protected override void OnRenderFrame(FrameEventArgs args)
         {
+            // draw background
             GL.ClearColor(0f,0.2f,0f,1.0f);
             GL.Clear(ClearBufferMask.ColorBufferBit);
 
             GL.Clear(ClearBufferMask.ColorBufferBit);
 
-            GL.UseProgram(bgShader);
+            GL.UseProgram(bgShaderProgram);
             GL.BindVertexArray(bgVao);
             GL.BindTexture(TextureTarget.Texture2D, bgTexture);
             GL.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
-            GL.BindVertexArray(0);
 
-            // draw objects            
+            // draw balls            
             GL.BindBuffer(BufferTarget.ArrayBuffer,positionsVbo);
             GL.BufferData(BufferTarget.ArrayBuffer,instancePositions.Length * 2 * sizeof(float), instancePositions, BufferUsageHint.DynamicDraw);
 
@@ -300,6 +340,22 @@ namespace spherical_pool_in_a_vacuum
             GL.UseProgram(shaderProgram);
             GL.BindVertexArray(vao);
             GL.DrawArraysInstanced(PrimitiveType.TriangleFan, 0, vertices.Length / 2, ballCount);
+
+            // draw direction indicator
+            GL.BindBuffer(BufferTarget.ArrayBuffer,directionVbo);
+            GL.BufferData(BufferTarget.ArrayBuffer,directionVertices.Length * 2 * sizeof(float), directionVertices, BufferUsageHint.DynamicDraw);
+
+            GL.UseProgram(directionShaderProgram);
+
+            GL.BindVertexArray(directionVao);
+            GL.LineWidth(5f);
+
+            GL.Enable(EnableCap.LineSmooth);
+            GL.DrawArrays(PrimitiveType.Lines, 0, 2);
+            GL.LineWidth(5f);
+
+
+            GL.BindVertexArray(0);
 
             Context.SwapBuffers();
 
@@ -329,6 +385,11 @@ namespace spherical_pool_in_a_vacuum
                 instancePositions[2*i + 1] = balls[i].Position.Y;
                 instanceRotations[i] = balls[i].Theta;
             }
+            directionVertices[0] = balls[^1].Position.X;
+            directionVertices[1] = balls[^1].Position.Y;
+            directionVertices[2] = balls[^1].Position.X + directionLength * MathF.Sin(direction);
+            directionVertices[3] = balls[^1].Position.Y + directionLength * MathF.Cos(direction);
+
 
             for (int i=ballCount - 1; i > -1; i--)
             {
